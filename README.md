@@ -1,5 +1,9 @@
 # Northstar — Value & deployment
 
+**Live demo:** https://northstar-intelligence-mu.vercel.app
+
+> Tip: use the **role switcher** (top right) to move between the *LOB owner* and *Executive / Admin* views — the *Intelligence allocation* screen is executive-only.
+
 A clickable prototype of a new surface inside **Claude Enterprise** settings, built for an Anthropic Enterprise PM take-home. It sits alongside Organization / Analytics and is designed for **existing Claude Enterprise customers with meaningful historical usage** (cold start is intentionally out of scope).
 
 It demonstrates two linked experiences for a fictional company, **Northstar**:
