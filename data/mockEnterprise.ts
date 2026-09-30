@@ -33,6 +33,36 @@ export interface AlternativeMetric {
   note: string;
 }
 
+// A connectable data source that would raise a measurement's confidence.
+// Clicking "Connect" in the LOB view simulates the integration and lifts
+// the workflow's confidence to `raisesTo`.
+export interface ConfidenceLever {
+  id: string;
+  sourceName: string; // e.g. "Deploy / release logs"
+  raisesTo: Confidence; // confidence once connected
+  description: string; // what connecting unlocks
+}
+
+// A natural-language measurement adjustment. The LOB tells Claude what to
+// change ("exclude epics", "use a 6-month baseline"); Claude returns a
+// recomputed signal. Some adjustments are blocked until a data source is
+// connected — demonstrating that measurement has hard limits, not just knobs.
+export interface MeasurementAdjustment {
+  id: string;
+  instruction: string; // chip label / canonical phrasing
+  keywords: string[]; // for light free-text matching (demo-safe, no real model)
+  requiresLeverId?: string; // if set, blocked until this lever is connected
+  blockedResponse?: string; // Claude's reply when the required data is missing
+  result?: {
+    current: number;
+    baseline: number;
+    changePct: number;
+    confidence: Confidence;
+    strength: SignalStrength;
+    explanation: string; // Claude's "what I changed and why"
+  };
+}
+
 // Deployment has three dimensions. "Capability" is NOT product surface
 // (Claude Code vs chat vs Cowork) — it is the shape of intelligence applied.
 export interface CapabilityConfig {
@@ -127,6 +157,13 @@ export interface DeploymentOpportunity {
     maintain: string; // result that would justify maintaining
     revert: string; // result that would justify reverting
   };
+
+  // Budget-draft support (executive view). Not every opportunity carries a
+  // spend delta — a "hold and improve measurement" item is not draftable.
+  draftable: boolean;
+  draftChangeLabel: string; // short label for the draft line, e.g. "+20% headroom"
+  spendDeltaLow: number; // monthly USD, directional
+  spendDeltaHigh: number; // monthly USD, directional
 }
 
 // ===========================================================================
@@ -573,6 +610,10 @@ export const opportunities: DeploymentOpportunity[] = [
       maintain: "Cycle time flat with no quality regression → keep the new limit, stop increasing.",
       revert: "Revert rate rises or cycle time worsens → return to the prior $20.0K limit.",
     },
+    draftable: true,
+    draftChangeLabel: "+20% headroom · $20K → $24K limit",
+    spendDeltaLow: 3400,
+    spendDeltaHigh: 3900,
   },
   {
     id: "opp-account-capability",
@@ -610,6 +651,10 @@ export const opportunities: DeploymentOpportunity[] = [
       maintain: "Modest gains → keep for the pilot cohort while improving guardrails.",
       revert: "No time gain or quality drops → return to assistive mode; the added autonomy isn't paying off.",
     },
+    draftable: true,
+    draftChangeLabel: "Agentic pilot · 8 of 22 reps",
+    spendDeltaLow: 3000,
+    spendDeltaHigh: 5000,
   },
   {
     id: "opp-content-investigate",
@@ -646,6 +691,10 @@ export const opportunities: DeploymentOpportunity[] = [
       maintain: "If approvals lag drafts → the extra drafting spend isn't converting to value; keep the current limit.",
       revert: "If most drafts never get approved → reduce consumption until the workflow is tuned.",
     },
+    draftable: false,
+    draftChangeLabel: "",
+    spendDeltaLow: 0,
+    spendDeltaHigh: 0,
   },
   {
     id: "opp-incident-tune",
@@ -683,8 +732,238 @@ export const opportunities: DeploymentOpportunity[] = [
       maintain: "Gains only on low-severity incidents → scope the capability to those.",
       revert: "No improvement or more reopens → return to standard effort and log-only access.",
     },
+    draftable: true,
+    draftChangeLabel: "Higher reasoning + observability access",
+    spendDeltaLow: 1500,
+    spendDeltaHigh: 2500,
   },
 ];
+
+// ===========================================================================
+// Confidence levers — connectable data that raises a measurement's confidence
+// ===========================================================================
+
+export const confidenceLevers: Record<string, ConfidenceLever[]> = {
+  "feature-development": [], // already High — no lever needed
+  "code-review": [
+    {
+      id: "release-tooling",
+      sourceName: "Release / deploy tooling",
+      raisesTo: "High",
+      description:
+        "Link hotfixes back to their source PRs so the revert rate stabilizes.",
+    },
+  ],
+  "incident-investigation": [
+    {
+      id: "severity-backfill",
+      sourceName: "Historical severity tags",
+      raisesTo: "High",
+      description:
+        "Backfill severity on pre-adoption incidents so the two periods compare like-for-like.",
+    },
+  ],
+  "account-research": [
+    {
+      id: "artifact-store",
+      sourceName: "Research artifact store",
+      raisesTo: "High",
+      description:
+        "Standardize where briefs are saved so every researched opportunity is counted.",
+    },
+  ],
+  "sales-call-prep": [
+    {
+      id: "call-outcomes",
+      sourceName: "CRM call outcomes",
+      raisesTo: "High",
+      description:
+        "Log call outcomes so prep time can be linked to next-step conversion.",
+    },
+  ],
+  "content-production": [
+    {
+      id: "cms-approval",
+      sourceName: "CMS approval workflow",
+      raisesTo: "Medium",
+      description:
+        "Connect approvals so we measure approved, published assets — not just drafts.",
+    },
+  ],
+};
+
+// ===========================================================================
+// Natural-language measurement adjustments (LOB "Adjust measurement")
+// The LOB tells Claude what to change; Claude returns a recomputed signal.
+// Free text is keyword-matched to the nearest entry (demo-safe — no real
+// model call). Some adjustments are blocked until a data source is connected.
+// ===========================================================================
+
+export const measurementAdjustments: Record<string, MeasurementAdjustment[]> = {
+  "feature-development": [
+    {
+      id: "exclude-epics",
+      instruction: "Exclude epics",
+      keywords: ["epic", "epics", "large", "big", "outlier"],
+      result: {
+        current: 3.8,
+        baseline: 5.2,
+        changePct: -27,
+        confidence: "High",
+        strength: "Strong signal",
+        explanation:
+          "Excluded 14 epic-sized issues (>3 weeks of scope) from both periods. The median tightens to 3.8d vs a 5.2d baseline, and the 27% improvement holds on comparable work — which strengthens the read.",
+      },
+    },
+    {
+      id: "six-month-baseline",
+      instruction: "Use a 6-month baseline",
+      keywords: ["6", "six", "month", "baseline", "longer", "history"],
+      result: {
+        current: 4.1,
+        baseline: 5.4,
+        changePct: -24,
+        confidence: "High",
+        strength: "Strong signal",
+        explanation:
+          "Extended the baseline to 6 months (Nov 2025–Apr 2026). The baseline settles to 5.4d, so the improvement reads 24% — slightly smaller, but on a more stable comparison.",
+      },
+    },
+    {
+      id: "senior-only",
+      instruction: "Only senior-engineer PRs",
+      keywords: ["senior", "staff", "experienced", "level", "tenure"],
+      result: {
+        current: 3.6,
+        baseline: 4.9,
+        changePct: -27,
+        confidence: "Medium",
+        strength: "Directional",
+        explanation:
+          "Scoped to senior-authored PRs (n=118). The gap persists (3.6d vs 4.9d) but the smaller sample lowers confidence to Medium — treat as directional.",
+      },
+    },
+  ],
+  "code-review": [
+    {
+      id: "six-month-window",
+      instruction: "Use a 6-month window",
+      keywords: ["6", "six", "month", "window", "longer", "baseline"],
+      result: {
+        current: 3.3,
+        baseline: 4.5,
+        changePct: -27,
+        confidence: "Medium",
+        strength: "Directional",
+        explanation:
+          "Extended the observation window to 6 months so the low-frequency revert rate stabilizes: 3.3% vs 4.5% (27%). Still Medium — reverts are rare, so even 6 months is a modest sample.",
+      },
+    },
+  ],
+  "incident-investigation": [
+    {
+      id: "segment-severity",
+      instruction: "Segment by severity",
+      keywords: ["severity", "sev", "segment", "tier", "control", "mix"],
+      result: {
+        current: 39,
+        baseline: 49,
+        changePct: -20,
+        confidence: "High",
+        strength: "Directional",
+        explanation:
+          "Compared Sev-2 incidents like-for-like (the largest, most consistent bucket). Resolution improved 20% (39min vs 49min), and controlling for severity removes the mix concern — confidence rises to High for this tier.",
+      },
+    },
+    {
+      id: "post-adoption-only",
+      instruction: "Use only clean post-adoption data",
+      keywords: ["clean", "complete", "post", "adoption", "reliable"],
+      result: {
+        current: 43,
+        baseline: 50,
+        changePct: -14,
+        confidence: "Medium",
+        strength: "Observed association",
+        explanation:
+          "Restricted to incidents with complete timeline data. The gap narrows slightly (43 vs 50min, 14%); confidence stays Medium because the pre-adoption sample is still thin.",
+      },
+    },
+  ],
+  "account-research": [
+    {
+      id: "exclude-no-brief",
+      instruction: "Exclude opps without a saved brief",
+      keywords: ["brief", "saved", "attribution", "exclude", "without"],
+      result: {
+        current: 2.3,
+        baseline: 3.6,
+        changePct: -36,
+        confidence: "Medium",
+        strength: "Directional",
+        explanation:
+          "Restricted to opportunities with a saved Claude brief (cleaner attribution). Research time reads 2.3h vs 3.6h (36%). Confidence stays Medium until brief storage is standardized.",
+      },
+    },
+    {
+      id: "ar-six-month",
+      instruction: "Use a 6-month baseline",
+      keywords: ["6", "six", "month", "baseline", "longer"],
+      result: {
+        current: 2.4,
+        baseline: 3.5,
+        changePct: -31,
+        confidence: "Medium",
+        strength: "Directional",
+        explanation:
+          "Extended the baseline to 6 months; it settles at 3.5h, so the improvement reads 31%. A more stable comparison, still Medium given inferred timing.",
+      },
+    },
+  ],
+  "sales-call-prep": [
+    {
+      id: "all-reps",
+      instruction: "Expand baseline to all reps",
+      keywords: ["all", "reps", "everyone", "expand", "baseline"],
+      result: {
+        current: 23,
+        baseline: 30,
+        changePct: -23,
+        confidence: "Medium",
+        strength: "Observed association",
+        explanation:
+          "Expanded the baseline from the pilot subset to all 54 reps: 23min vs 30min (23%). Broader and fairer, though outcome linkage is still missing.",
+      },
+    },
+  ],
+  "content-production": [
+    {
+      id: "count-approved",
+      instruction: "Only count approved assets",
+      keywords: ["approved", "approval", "published", "real", "value", "count"],
+      requiresLeverId: "cms-approval",
+      blockedResponse:
+        "I can't measure approved assets yet — the CMS approval workflow isn't connected, so I can only see drafts. Connect your CMS and I'll recompute on approved, published assets.",
+      result: {
+        current: 96,
+        baseline: 74,
+        changePct: 30,
+        confidence: "Medium",
+        strength: "Directional",
+        explanation:
+          "Now measuring approved assets from the connected CMS: 96 approved this month vs a 74 baseline (+30%). The earlier count (128) was estimated from published URLs and overcounted. The gain holds on approved work, so confidence rises from Low to Medium.",
+      },
+    },
+  ],
+};
+
+export function leversFor(id: string): ConfidenceLever[] {
+  return confidenceLevers[id] ?? [];
+}
+
+export function adjustmentsFor(id: string): MeasurementAdjustment[] {
+  return measurementAdjustments[id] ?? [];
+}
 
 // ===========================================================================
 // Derived / rollup helpers — keep both experiences consistent

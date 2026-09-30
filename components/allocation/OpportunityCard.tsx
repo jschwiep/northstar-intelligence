@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { DeploymentOpportunity } from "@/data/mockEnterprise";
-import { workflowById } from "@/data/mockEnterprise";
+import { workflowById, departmentById } from "@/data/mockEnterprise";
+import { useAppState } from "@/components/AppState";
 import { Card, ConfidenceBadge, ClaudeMark } from "@/components/ui";
 import { Drawer } from "@/components/Drawer";
 import { usdK } from "@/lib/format";
@@ -14,13 +15,11 @@ const kindStyle: Record<DeploymentOpportunity["kind"], string> = {
   "tune-capability": "border-line-strong bg-surface text-ink-soft",
 };
 
-function DimensionRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function ownerName(deptId: DeploymentOpportunity["department"]): string {
+  return (departmentById(deptId)?.owner ?? "").split(" — ")[0] || "the owner";
+}
+
+function DimensionRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex-1">
       <div className="text-2xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
@@ -33,17 +32,29 @@ function DimensionRow({
 
 export function OpportunityCard({ opp }: { opp: DeploymentOpportunity }) {
   const [open, setOpen] = useState(false);
+  const { isDrafted, toggleDraft } = useAppState();
   const wf = workflowById(opp.workflowId)!;
+  const drafted = isDrafted(opp.id);
 
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden ${drafted ? "ring-1 ring-accent-soft" : ""}`}>
       <div className="px-6 pt-5">
         <div className="flex items-center justify-between gap-3">
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-semibold uppercase tracking-wide ${kindStyle[opp.kind]}`}
-          >
-            {opp.kindLabel}
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-2xs font-semibold uppercase tracking-wide ${kindStyle[opp.kind]}`}
+            >
+              {opp.kindLabel}
+            </span>
+            {drafted && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-accent-soft bg-accent-wash px-2 py-0.5 text-2xs font-medium text-accent">
+                <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 8.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                In budget draft
+              </span>
+            )}
+          </div>
           <ConfidenceBadge level={opp.confidence} />
         </div>
 
@@ -68,18 +79,34 @@ export function OpportunityCard({ opp }: { opp: DeploymentOpportunity }) {
       <div className="flex items-center justify-between gap-4 border-t border-line px-6 py-3">
         <div className="text-xs text-ink-faint">
           Current limit{" "}
-          <span className="font-medium text-ink-soft">
-            {usdK(wf.spendLimitMonthly)}/mo
-          </span>{" "}
-          · {wf.limitUtilizationPct}% utilized · spend{" "}
+          <span className="font-medium text-ink-soft">{usdK(wf.spendLimitMonthly)}/mo</span> ·{" "}
+          {wf.limitUtilizationPct}% utilized · spend{" "}
           <span className="font-medium text-ink-soft">{usdK(wf.spendMonthly)}/mo</span>
         </div>
-        <button
-          onClick={() => setOpen(true)}
-          className="shrink-0 rounded-lg bg-ink px-3.5 py-1.5 text-xs font-medium text-canvas transition-colors hover:bg-ink/90"
-        >
-          {opp.cta}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setOpen(true)}
+            className="rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
+          >
+            View evidence &amp; plan
+          </button>
+          {opp.draftable ? (
+            <button
+              onClick={() => toggleDraft(opp.id)}
+              className={`rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors ${
+                drafted
+                  ? "border border-line bg-panel text-ink hover:bg-line/40"
+                  : "bg-ink text-canvas hover:bg-ink/90"
+              }`}
+            >
+              {drafted ? "Remove from draft" : "Move to budget draft"}
+            </button>
+          ) : (
+            <span className="text-2xs italic text-ink-faint">
+              No spend change — improve measurement first
+            </span>
+          )}
+        </div>
       </div>
 
       <Drawer
@@ -90,15 +117,21 @@ export function OpportunityCard({ opp }: { opp: DeploymentOpportunity }) {
         footer={
           <div className="flex items-center justify-between gap-4">
             <p className="text-2xs leading-snug text-ink-faint">
-              Claude recommends a test. It does not autonomously reallocate
-              budget — you remain the decision-maker.
+              Claude recommends a reversible test — it does not reallocate
+              budget. You remain the decision-maker.
             </p>
-            <button
-              onClick={() => setOpen(false)}
-              className="shrink-0 rounded-lg bg-ink px-3.5 py-1.5 text-xs font-medium text-canvas transition-colors hover:bg-ink/90"
-            >
-              {opp.cta}
-            </button>
+            {opp.draftable ? (
+              <button
+                onClick={() => toggleDraft(opp.id)}
+                className={`shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors ${
+                  drafted
+                    ? "border border-line bg-panel text-ink hover:bg-line/40"
+                    : "bg-ink text-canvas hover:bg-ink/90"
+                }`}
+              >
+                {drafted ? "Remove from draft" : "Move to budget draft"}
+              </button>
+            ) : null}
           </div>
         }
       >
@@ -108,13 +141,7 @@ export function OpportunityCard({ opp }: { opp: DeploymentOpportunity }) {
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
       <div className="mb-2 text-2xs font-semibold uppercase tracking-[0.08em] text-ink-faint">
@@ -169,6 +196,69 @@ function OpportunityDetail({ opp }: { opp: DeploymentOpportunity }) {
           {wf.confidence.toLowerCase()} confidence.
         </p>
       </Section>
+
+      <NoteToOwner opp={opp} />
+    </div>
+  );
+}
+
+// Inline, always-present note/question to the workflow's LOB owner.
+function NoteToOwner({ opp }: { opp: DeploymentOpportunity }) {
+  const { sendOwnerNote, notesForWorkflow } = useAppState();
+  const [text, setText] = useState("");
+  const owner = ownerName(opp.department);
+  const wf = workflowById(opp.workflowId)!;
+  const sent = notesForWorkflow(opp.workflowId);
+
+  function send(e: React.FormEvent) {
+    e.preventDefault();
+    if (!text.trim()) return;
+    sendOwnerNote({
+      workflowId: opp.workflowId,
+      workflowName: wf.name,
+      from: "Dana Whitfield (Exec)",
+      text: text.trim(),
+    });
+    setText("");
+  }
+
+  return (
+    <div className="border-t border-line pt-5">
+      <div className="mb-2 text-2xs font-semibold uppercase tracking-[0.08em] text-ink-faint">
+        Note or question to {owner}
+      </div>
+      {sent.length > 0 && (
+        <div className="mb-2 space-y-1.5">
+          {sent.map((n) => (
+            <div
+              key={n.id}
+              className="flex items-start gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-xs text-ink-soft"
+            >
+              <svg viewBox="0 0 16 16" className="mt-0.5 h-3 w-3 shrink-0 text-signal-high" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 8.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>
+                Sent · “{n.text}” — {owner} will see this on their Value tab.
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <form onSubmit={send} className="flex items-end gap-2">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={2}
+          placeholder={`e.g. Can you sanity-check the baseline before I draft this?`}
+          className="flex-1 resize-none rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+        />
+        <button
+          type="submit"
+          className="shrink-0 rounded-lg border border-line bg-panel px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-line/40"
+        >
+          Send
+        </button>
+      </form>
     </div>
   );
 }
@@ -176,23 +266,13 @@ function OpportunityDetail({ opp }: { opp: DeploymentOpportunity }) {
 function ChangeRow({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-2xs font-medium uppercase tracking-wide text-ink-faint">
-        {label}
-      </div>
+      <div className="text-2xs font-medium uppercase tracking-wide text-ink-faint">{label}</div>
       <div className="mt-0.5 text-sm leading-relaxed text-ink-soft">{value}</div>
     </div>
   );
 }
 
-function Outcome({
-  color,
-  label,
-  value,
-}: {
-  color: string;
-  label: string;
-  value: string;
-}) {
+function Outcome({ color, label, value }: { color: string; label: string; value: string }) {
   return (
     <div className="flex gap-2 text-sm leading-relaxed">
       <span className={`shrink-0 font-semibold ${color}`}>{label}</span>

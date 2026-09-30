@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAppState } from "@/components/AppState";
 import { TopBar } from "@/components/TopBar";
 import { OpportunityCard } from "@/components/allocation/OpportunityCard";
+import { BudgetDraftPanel } from "@/components/allocation/BudgetDraftPanel";
 import { Card, Metric, ClaudeNote } from "@/components/ui";
 import {
   opportunities,
@@ -97,11 +98,15 @@ export default function AllocationPage() {
             Claude surfaced {opportunities.length} evidence-backed deployment
             opportunities.
           </span>{" "}
-          These are not a ranking of departments by ROI. Each is a specific,
-          reversible test — expand consumption where the signal is strong,
-          expand capability where the workflow is ready, and hold where
-          measurement is not yet credible.
+          These are not a ranking of departments by ROI. Review each one, move
+          the ones worth pursuing into your budget draft, or send the owner a
+          question. Nothing here is applied — you take the draft into planning.
         </ClaudeNote>
+
+        {/* Budget draft — the exec's working artifact */}
+        <div className="mt-6">
+          <BudgetDraftPanel />
+        </div>
 
         {/* Deployment opportunities */}
         <div className="mt-6">
