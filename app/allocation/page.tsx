@@ -59,7 +59,7 @@ export default function AllocationPage() {
         <p className="max-w-3xl text-sm leading-relaxed text-ink-soft">
           Measurement is not the end product. Given what we now know about the
           value each workflow creates, this view helps decide where and how to
-          deploy more — or less — AI.
+          deploy more or less AI.
         </p>
 
         {/* Restrained overview strip */}

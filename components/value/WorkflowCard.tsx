@@ -207,25 +207,27 @@ export function WorkflowCard({ workflow }: { workflow: Workflow }) {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 border-t border-line bg-surface/60 px-6 py-3">
-            <button
-              onClick={() => setAccepted(true)}
-              className="rounded-lg bg-ink px-3.5 py-1.5 text-xs font-medium text-canvas transition-colors hover:bg-ink/90"
-            >
-              Accept measurement
-            </button>
-            <button
-              onClick={() => setAdjustOpen((v) => !v)}
-              className="rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
-            >
-              Adjust measurement
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface/60 px-6 py-3">
             <button
               onClick={() => setDrawerOpen(true)}
-              className="ml-auto text-xs font-medium text-ink-soft underline-offset-2 hover:underline"
+              className="text-xs font-medium text-ink-soft underline-offset-2 hover:underline"
             >
               See what data Claude used
             </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setAdjustOpen((v) => !v)}
+                className="rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
+              >
+                Adjust measurement
+              </button>
+              <button
+                onClick={() => setAccepted(true)}
+                className="rounded-lg bg-ink px-3.5 py-1.5 text-xs font-medium text-canvas transition-colors hover:bg-ink/90"
+              >
+                Accept measurement
+              </button>
+            </div>
           </div>
         </>
       )}
