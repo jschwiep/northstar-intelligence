@@ -95,9 +95,7 @@ export default function AllocationPage() {
             Claude surfaced {opportunities.length} evidence-backed deployment
             opportunities.
           </span>{" "}
-          These are not a ranking of departments by ROI. Review each one, move
-          the ones worth pursuing into your budget draft, or send the owner a
-          question. Nothing here is applied — you take the draft into planning.
+          Review each one and move the ones worth pursuing into your budget draft.
         </ClaudeNote>
 
         {/* Budget draft — the exec's working artifact */}
