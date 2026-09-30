@@ -239,7 +239,7 @@ export function WorkflowCard({ workflow }: { workflow: Workflow }) {
           <span className="h-1.5 w-1.5 rounded-full bg-signal-med" />
           Confidence is <span className="font-medium text-ink-soft">{view.confidence}</span> —
           connect {openLevers.map((l) => l.sourceName).join(", ")} to reach{" "}
-          {openLevers[0].raisesTo}. <span className="text-accent">Adjust →</span>
+          {openLevers[0].raisesTo}.
         </button>
       )}
       {levers.length > 0 && openLevers.length === 0 && (
