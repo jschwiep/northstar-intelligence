@@ -16,7 +16,6 @@ export function BudgetDraftPanel() {
     setDraftTitle,
     draftNotes,
     setDraftNotes,
-    setDraftItemNote,
     toggleDraft,
   } = useAppState();
 
@@ -43,14 +42,13 @@ export function BudgetDraftPanel() {
       ""
     );
     lines.push(`## Items (${items.length})`, "");
-    for (const { draft, opp } of items) {
+    for (const { opp } of items) {
       const wf = workflowById(opp.workflowId)!;
       lines.push(`### ${opp.title}`);
       lines.push(`- Change: ${opp.draftChangeLabel}`);
       lines.push(`- Directional spend: +${usdKRange(opp.spendDeltaLow, opp.spendDeltaHigh)}/mo`);
       lines.push(`- Value signal: ${wf.primarySignal.label} (${opp.confidence} confidence)`);
       lines.push(`- Monitor: ${opp.whatWeLearn.metric}`);
-      if (draft.note) lines.push(`- Note: ${draft.note}`);
       lines.push("");
     }
     if (draftNotes.trim()) {
@@ -137,38 +135,30 @@ export function BudgetDraftPanel() {
 
               {/* Items */}
               <div className="mt-3 space-y-3">
-                {items.map(({ draft, opp }) => {
+                {items.map(({ opp }) => {
                   const wf = workflowById(opp.workflowId)!;
                   return (
-                    <div key={opp.id} className="rounded-lg border border-line bg-surface p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-medium text-ink">{opp.title}</div>
-                          <div className="mt-0.5 text-xs text-ink-soft">
-                            {opp.draftChangeLabel} · directional +
-                            {usdKRange(opp.spendDeltaLow, opp.spendDeltaHigh)}/mo ·{" "}
-                            {opp.confidence} confidence
-                          </div>
-                          <div className="mt-1 text-2xs text-ink-faint">
-                            Monitors {wf.primarySignal.label.toLowerCase()}
-                          </div>
+                    <div key={opp.id} className="flex items-start justify-between gap-3 rounded-lg border border-line bg-surface p-4">
+                      <div>
+                        <div className="text-sm font-medium text-ink">{opp.title}</div>
+                        <div className="mt-0.5 text-xs text-ink-soft">
+                          {opp.draftChangeLabel} · directional +
+                          {usdKRange(opp.spendDeltaLow, opp.spendDeltaHigh)}/mo ·{" "}
+                          {opp.confidence} confidence
                         </div>
-                        <button
-                          onClick={() => toggleDraft(opp.id)}
-                          className="shrink-0 rounded-md p-1 text-ink-faint transition-colors hover:bg-line/50 hover:text-ink"
-                          aria-label="Remove from draft"
-                        >
-                          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-                            <path d="M5 5l10 10M15 5L5 15" strokeLinecap="round" />
-                          </svg>
-                        </button>
+                        <div className="mt-1 text-2xs text-ink-faint">
+                          Monitors {wf.primarySignal.label.toLowerCase()}
+                        </div>
                       </div>
-                      <input
-                        value={draft.note}
-                        onChange={(e) => setDraftItemNote(opp.id, e.target.value)}
-                        placeholder="Add a rationale for this item…"
-                        className="mt-2.5 w-full rounded-md border border-line bg-panel px-2.5 py-1.5 text-xs text-ink outline-none placeholder:text-ink-faint focus:border-accent"
-                      />
+                      <button
+                        onClick={() => toggleDraft(opp.id)}
+                        className="shrink-0 rounded-md p-1 text-ink-faint transition-colors hover:bg-line/50 hover:text-ink"
+                        aria-label="Remove from draft"
+                      >
+                        <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                          <path d="M5 5l10 10M15 5L5 15" strokeLinecap="round" />
+                        </svg>
+                      </button>
                     </div>
                   );
                 })}

@@ -64,12 +64,12 @@ Suggested flow:
 
 1. Open as **LOB owner** → **Value** (defaults to Engineering).
 2. Note the framing: *Claude found these workflows and recommends measuring value this way.* One measurement (Incident investigation) is still **Proposed** — you can **Accept** it live.
-3. On **Feature development**, click **How this is measured** (calculation, baseline, confidence rationale, sources, limitations), then **Adjust measurement** and tell Claude *"exclude epics"* (or type your own) — Claude **recomputes** the signal and confidence in plain language. Accept the revised version or revert.
+3. On **Feature development**, click **How this is measured** (calculation, baseline, confidence rationale, sources, limitations) — and at the bottom, **ask Claude about the measurement** ("Is this causal?", "Why this confidence level?"). Then use **Adjust measurement** and tell Claude *"exclude epics"* (or type your own) — Claude **recomputes** the signal and confidence in plain language. Accept the revised version or revert. The same panel lets you **add data** to strengthen the signal.
 4. See **confidence as a lever**: on a Medium workflow, use **Connect** (e.g. *Release / deploy tooling*) to raise confidence. Switch to **Sales & Marketing**, open **Adjust** on *Campaign / content production* and ask for *"only count approved assets"* — Claude says it can't until the CMS is connected, then **Connect** unlocks the recompute. This shows measurement has real limits, not just knobs.
 5. Scroll to **Cost predictability** — a spend forecast derived from *expected work*, not token extrapolation.
 6. Switch the role to **Executive / Admin** → open **Intelligence allocation**.
 7. Read the restrained overview, then the **Deployment opportunities**: expand consumption (Feature dev), expand capability (Account research), investigate before expanding (Marketing content), and tune capability (Incident response).
-8. Open one with **View evidence & plan**: **Evidence → Proposed deployment change → What we'll learn** (expand / maintain / revert), plus an inline **note to the LOB owner** — send one and it surfaces on that owner's Value tab.
+8. Open one with **View evidence & plan**: **Evidence → Proposed deployment change → What we'll learn** (expand / maintain / revert). At the bottom, **ask Claude** about the opportunity ("What's the risk?"), or **Ask [owner]** to escalate a judgment call to the LOB owner — it surfaces on their Value tab.
 9. Use **Move to budget draft** on a couple of opportunities. The **Budget draft** — a lightweight, editable memo with a *directional* spend envelope — fills in. Nothing is applied; **Export draft** produces the artifact you take into planning. (The Marketing item is deliberately *not* draftable — improve its measurement first.)
 
 ---

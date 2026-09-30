@@ -6,6 +6,8 @@ import { workflowById, departmentById } from "@/data/mockEnterprise";
 import { useAppState } from "@/components/AppState";
 import { Card, ConfidenceBadge, ClaudeMark } from "@/components/ui";
 import { Drawer } from "@/components/Drawer";
+import { AskBox } from "@/components/AskBox";
+import { answerOpportunityQuestion } from "@/lib/answers";
 import { usdK } from "@/lib/format";
 
 const kindStyle: Record<DeploymentOpportunity["kind"], string> = {
@@ -197,68 +199,46 @@ function OpportunityDetail({ opp }: { opp: DeploymentOpportunity }) {
         </p>
       </Section>
 
-      <NoteToOwner opp={opp} />
+      <AskAboutOpportunity opp={opp} />
     </div>
   );
 }
 
-// Inline, always-present note/question to the workflow's LOB owner.
-function NoteToOwner({ opp }: { opp: DeploymentOpportunity }) {
+// Ask Claude about the opportunity — with escalation to the LOB owner on the
+// same input (Claude first, human for judgment calls).
+function AskAboutOpportunity({ opp }: { opp: DeploymentOpportunity }) {
   const { sendOwnerNote, notesForWorkflow } = useAppState();
-  const [text, setText] = useState("");
-  const owner = ownerName(opp.department);
   const wf = workflowById(opp.workflowId)!;
+  const owner = ownerName(opp.department);
+  const firstName = owner.split(" ")[0];
   const sent = notesForWorkflow(opp.workflowId);
-
-  function send(e: React.FormEvent) {
-    e.preventDefault();
-    if (!text.trim()) return;
-    sendOwnerNote({
-      workflowId: opp.workflowId,
-      workflowName: wf.name,
-      from: "Dana Whitfield (Exec)",
-      text: text.trim(),
-    });
-    setText("");
-  }
 
   return (
     <div className="border-t border-line pt-5">
-      <div className="mb-2 text-2xs font-semibold uppercase tracking-[0.08em] text-ink-faint">
-        Note or question to {owner}
+      <div className="mb-2 flex items-center gap-2">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/10 text-accent">
+          <ClaudeMark className="h-3 w-3" />
+        </span>
+        <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-faint">
+          Ask about this opportunity
+        </span>
       </div>
-      {sent.length > 0 && (
-        <div className="mb-2 space-y-1.5">
-          {sent.map((n) => (
-            <div
-              key={n.id}
-              className="flex items-start gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-xs text-ink-soft"
-            >
-              <svg viewBox="0 0 16 16" className="mt-0.5 h-3 w-3 shrink-0 text-signal-high" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 8.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>
-                Sent · “{n.text}” — {owner} will see this on their Value tab.
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      <form onSubmit={send} className="flex items-end gap-2">
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={2}
-          placeholder={`e.g. Can you sanity-check the baseline before I draft this?`}
-          className="flex-1 resize-none rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent"
-        />
-        <button
-          type="submit"
-          className="shrink-0 rounded-lg border border-line bg-panel px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-line/40"
-        >
-          Send
-        </button>
-      </form>
+      <AskBox
+        suggestions={["Why this workflow?", "What's the risk?", "How much does it cost?"]}
+        placeholder={`Ask Claude, or send to ${firstName} if it's a judgment call…`}
+        onAsk={(q) => answerOpportunityQuestion(opp, wf, q)}
+        escalate={{
+          ownerName: firstName,
+          onEscalate: (text) =>
+            sendOwnerNote({
+              workflowId: opp.workflowId,
+              workflowName: wf.name,
+              from: "Dana Whitfield (Exec)",
+              text,
+            }),
+        }}
+        sentNotes={sent.map((n) => ({ id: n.id, text: n.text }))}
+      />
     </div>
   );
 }

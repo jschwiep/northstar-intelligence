@@ -7,6 +7,8 @@ import { useAppState } from "@/components/AppState";
 import { Card, ConfidenceBadge, StrengthTag, ClaudeMark } from "@/components/ui";
 import { ValueChain, CompareBars, SourceChips } from "@/components/Visuals";
 import { Drawer } from "@/components/Drawer";
+import { AskBox } from "@/components/AskBox";
+import { answerMeasurementQuestion } from "@/lib/answers";
 import { formatSignal, pct, isImprovement } from "@/lib/format";
 
 const rank: Record<Confidence, number> = { Low: 0, Medium: 1, High: 2 };
@@ -37,11 +39,8 @@ export function WorkflowCard({ workflow }: { workflow: Workflow }) {
   const [applied, setApplied] = useState<MeasurementAdjustment | null>(null);
 
   const levers = leversFor(workflow.id);
-  const adjustments = adjustmentsFor(workflow.id);
   const execNotes = notesForWorkflow(workflow.id);
 
-  // Effective confidence = base, lifted by any connected lever, overridden by
-  // an applied adjustment's recomputed result.
   const leverConfidence = levers
     .filter((l) => connected.includes(l.id))
     .reduce<Confidence>(
@@ -49,7 +48,6 @@ export function WorkflowCard({ workflow }: { workflow: Workflow }) {
       workflow.confidence
     );
 
-  // Build the workflow view actually shown (numbers + confidence + strength).
   const view: Workflow = useMemo(() => {
     if (applied?.result) {
       const r = applied.result;
@@ -215,56 +213,41 @@ export function WorkflowCard({ workflow }: { workflow: Workflow }) {
         </>
       )}
 
-      {/* Adjust panel (natural language) */}
-      {adjustOpen && (
-        <AdjustPanel
-          workflow={workflow}
-          adjustments={adjustments}
-          connected={connected}
-          applied={applied}
-          onApply={(adj) => setApplied(adj)}
-          onRevert={() => setApplied(null)}
-          onConnect={connectLever}
-          onAcceptRevised={() => {
-            setAccepted(true);
-            setAdjustOpen(false);
-          }}
-        />
-      )}
-
-      {/* Raise-confidence levers */}
-      {openLevers.length > 0 && (
-        <div className="border-t border-line px-6 py-3">
-          <div className="mb-1.5 text-2xs font-medium uppercase tracking-wide text-ink-faint">
-            Raise confidence
-          </div>
-          <div className="space-y-2">
-            {openLevers.map((l) => (
-              <div key={l.id} className="flex items-center justify-between gap-3">
-                <div className="text-xs text-ink-soft">
-                  <span className="text-ink-faint">
-                    {view.confidence} → {l.raisesTo}:
-                  </span>{" "}
-                  Connect <span className="font-medium text-ink">{l.sourceName}</span> — {l.description}
-                </div>
-                <button
-                  onClick={() => connectLever(l.id)}
-                  className="shrink-0 rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
-                >
-                  Connect
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Slim confidence hint → opens Adjust (where data can be connected) */}
+      {openLevers.length > 0 && !adjustOpen && (
+        <button
+          onClick={() => setAdjustOpen(true)}
+          className="flex w-full items-center gap-1.5 border-t border-line bg-panel px-6 py-2 text-left text-2xs text-ink-faint transition-colors hover:bg-surface"
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-signal-med" />
+          Confidence is <span className="font-medium text-ink-soft">{view.confidence}</span> —
+          connect {openLevers.map((l) => l.sourceName).join(", ")} to reach{" "}
+          {openLevers[0].raisesTo}. <span className="text-accent">Adjust →</span>
+        </button>
       )}
       {levers.length > 0 && openLevers.length === 0 && (
-        <div className="flex items-center gap-1.5 border-t border-line px-6 py-2.5 text-2xs text-signal-high">
+        <div className="flex items-center gap-1.5 border-t border-line px-6 py-2 text-2xs text-signal-high">
           <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 8.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           {levers.map((l) => l.sourceName).join(", ")} connected — confidence raised to {view.confidence}.
         </div>
+      )}
+
+      {/* Adjust panel (natural language + add data) */}
+      {adjustOpen && (
+        <AdjustPanel
+          workflow={workflow}
+          connected={connected}
+          onApply={(adj) => setApplied(adj)}
+          onRevert={() => setApplied(null)}
+          onConnect={connectLever}
+          applied={applied}
+          onAcceptRevised={() => {
+            setAccepted(true);
+            setAdjustOpen(false);
+          }}
+        />
       )}
 
       {/* Measurement detail drawer */}
@@ -281,11 +264,10 @@ export function WorkflowCard({ workflow }: { workflow: Workflow }) {
 }
 
 // ---------------------------------------------------------------------------
-// Adjust panel — conversational recompute
+// Adjust panel — conversational recompute + add data
 // ---------------------------------------------------------------------------
 function AdjustPanel({
   workflow,
-  adjustments,
   connected,
   applied,
   onApply,
@@ -294,7 +276,6 @@ function AdjustPanel({
   onAcceptRevised,
 }: {
   workflow: Workflow;
-  adjustments: MeasurementAdjustment[];
   connected: string[];
   applied: MeasurementAdjustment | null;
   onApply: (adj: MeasurementAdjustment) => void;
@@ -302,6 +283,10 @@ function AdjustPanel({
   onConnect: (leverId: string) => void;
   onAcceptRevised: () => void;
 }) {
+  const adjustments = adjustmentsFor(workflow.id);
+  const levers = leversFor(workflow.id);
+  const openLevers = levers.filter((l) => !connected.includes(l.id));
+
   const [input, setInput] = useState("");
   const [response, setResponse] = useState<
     | { type: "applied"; adj: MeasurementAdjustment }
@@ -309,6 +294,9 @@ function AdjustPanel({
     | { type: "nomatch" }
     | null
   >(applied ? { type: "applied", adj: applied } : null);
+
+  const [sourceInput, setSourceInput] = useState("");
+  const [sourceAck, setSourceAck] = useState<string | null>(null);
 
   function run(text: string) {
     const adj = matchAdjustment(text, adjustments);
@@ -330,6 +318,16 @@ function AdjustPanel({
     run(input.trim());
   }
 
+  function volunteerSource(e: React.FormEvent) {
+    e.preventDefault();
+    const s = sourceInput.trim();
+    if (!s) return;
+    setSourceAck(
+      `Noted — I'll flag “${s}” for your workspace admin to connect. Once it's in, I can factor it into this measurement.`
+    );
+    setSourceInput("");
+  }
+
   return (
     <div className="border-t border-line bg-surface px-6 py-4">
       <div className="flex items-center gap-2">
@@ -338,7 +336,7 @@ function AdjustPanel({
         </span>
         <span className="text-xs font-medium text-ink">Adjust the measurement</span>
         <span className="text-2xs text-ink-faint">
-          Tell Claude how to change it — in plain language.
+          Tell Claude how to change it, or add data to strengthen it.
         </span>
       </div>
 
@@ -385,11 +383,9 @@ function AdjustPanel({
 
       {response?.type === "blocked" && (
         <div className="mt-3 rounded-lg border border-signal-low/30 bg-signal-low/[0.06] px-3.5 py-3">
-          <p className="text-xs leading-relaxed text-ink-soft">
-            {response.adj.blockedResponse}
-          </p>
+          <p className="text-xs leading-relaxed text-ink-soft">{response.adj.blockedResponse}</p>
           {(() => {
-            const lever = leversFor(workflow.id).find((l) => l.id === response.adj.requiresLeverId);
+            const lever = levers.find((l) => l.id === response.adj.requiresLeverId);
             if (!lever) return null;
             return (
               <button
@@ -458,6 +454,58 @@ function AdjustPanel({
           </div>
         </div>
       )}
+
+      {/* Add data — connect sources or volunteer another */}
+      <div className="mt-4 border-t border-line pt-3">
+        <div className="mb-2 text-2xs font-semibold uppercase tracking-[0.08em] text-ink-faint">
+          Add data to strengthen this
+        </div>
+        {openLevers.length > 0 ? (
+          <div className="space-y-2">
+            {openLevers.map((l) => (
+              <div key={l.id} className="flex items-center justify-between gap-3">
+                <div className="text-xs text-ink-soft">
+                  <span className="text-ink-faint">→ {l.raisesTo}:</span> Connect{" "}
+                  <span className="font-medium text-ink">{l.sourceName}</span> — {l.description}
+                </div>
+                <button
+                  onClick={() => onConnect(l.id)}
+                  className="shrink-0 rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
+                >
+                  Connect
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : levers.length > 0 ? (
+          <p className="text-xs text-signal-high">All suggested sources connected.</p>
+        ) : (
+          <p className="text-xs text-ink-faint">
+            Claude has the sources it needs for this signal.
+          </p>
+        )}
+
+        <form onSubmit={volunteerSource} className="mt-2.5 flex gap-2">
+          <input
+            value={sourceInput}
+            onChange={(e) => setSourceInput(e.target.value)}
+            placeholder="Have another source to share? e.g. Jira, our data warehouse…"
+            className="flex-1 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+          />
+          <button
+            type="submit"
+            className="rounded-lg border border-line bg-panel px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-line/40"
+          >
+            Offer source
+          </button>
+        </form>
+        {sourceAck && (
+          <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-ink-soft">
+            <ClaudeMark className="mt-0.5 h-3 w-3 shrink-0 text-accent" />
+            {sourceAck}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -499,9 +547,7 @@ function MeasurementDetail({
 
       <Field label="Baseline period">{baseWorkflow.baselinePeriod}</Field>
 
-      <Field label="Why this confidence level">
-        {baseWorkflow.confidenceRationale}
-      </Field>
+      <Field label="Why this confidence level">{baseWorkflow.confidenceRationale}</Field>
 
       <Field label="Limitations">
         <ul className="list-disc space-y-1 pl-4">
@@ -518,6 +564,27 @@ function MeasurementDetail({
           ))}
         </ul>
       </Field>
+
+      {/* Ask about this measurement */}
+      <div className="border-t border-line pt-5">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/10 text-accent">
+            <ClaudeMark className="h-3 w-3" />
+          </span>
+          <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-faint">
+            Ask about this measurement
+          </span>
+        </div>
+        <AskBox
+          suggestions={[
+            "Why this confidence level?",
+            "Is this causal?",
+            "What would make it stronger?",
+          ]}
+          placeholder="Ask about the calculation, baseline, or limitations…"
+          onAsk={(q) => answerMeasurementQuestion(baseWorkflow, q)}
+        />
+      </div>
     </div>
   );
 }
