@@ -140,97 +140,86 @@ export function WorkflowCard({ workflow }: { workflow: Workflow }) {
         </div>
       </div>
 
-      {/* ------- ACCEPTED: computed value view ------- */}
+      {/* Body: computed value (accepted) or Claude's candidate observation */}
       {accepted ? (
-        <>
-          <div className="mt-5 border-t border-line px-6 py-5">
-            <ValueChain w={view} />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface/60 px-6 py-3">
-            <div className="text-xs text-ink-faint">
-              {improved ? "Improvement" : "Change"} vs baseline:{" "}
+        <div className="mt-5 border-t border-line px-6 py-5">
+          <ValueChain w={view} />
+        </div>
+      ) : (
+        <div className="mt-5 grid grid-cols-2 gap-6 border-t border-line px-6 py-5">
+          <div>
+            <div className="mb-2 text-2xs font-medium uppercase tracking-wide text-ink-faint">
+              Claude&apos;s candidate observation
+            </div>
+            <CompareBars w={view} />
+            <div className="mt-3 text-xs text-ink-faint">
+              {improved ? "Directional improvement" : "Change"} of{" "}
               <span className={`font-semibold ${improved ? "text-signal-high" : "text-signal-low"}`}>
                 {pct(view.changePct)}
               </span>{" "}
-              · {workflow.supportingSignals[0].label}:{" "}
-              <span className="text-ink-soft">{workflow.supportingSignals[0].value}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setAdjustOpen((v) => !v)}
-                className="rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
-              >
-                Adjust measurement
-              </button>
-              <button
-                onClick={() => setDrawerOpen(true)}
-                className="rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
-              >
-                How this is measured
-              </button>
+              over {workflow.workUnit.count.toLocaleString("en-US")}{" "}
+              {workflow.workUnit.label.toLowerCase()}.
             </div>
           </div>
-        </>
-      ) : (
-        /* ------- PROPOSED: Claude's recommendation ------- */
-        <>
-          <div className="mt-5 grid grid-cols-2 gap-6 border-t border-line px-6 py-5">
-            <div>
-              <div className="mb-2 text-2xs font-medium uppercase tracking-wide text-ink-faint">
-                Claude&apos;s candidate observation
-              </div>
-              <CompareBars w={view} />
-              <div className="mt-3 text-xs text-ink-faint">
-                {improved ? "Directional improvement" : "Change"} of{" "}
-                <span className={`font-semibold ${improved ? "text-signal-high" : "text-signal-low"}`}>
-                  {pct(view.changePct)}
-                </span>{" "}
-                over {workflow.workUnit.count.toLocaleString("en-US")}{" "}
-                {workflow.workUnit.label.toLowerCase()}.
-              </div>
+          <div>
+            <div className="mb-2 text-2xs font-medium uppercase tracking-wide text-ink-faint">
+              Data available
             </div>
-            <div>
-              <div className="mb-2 text-2xs font-medium uppercase tracking-wide text-ink-faint">
-                Data available
-              </div>
-              <SourceChips w={workflow} />
-              <div className="mt-3 text-2xs font-medium uppercase tracking-wide text-ink-faint">
-                Supporting signals
-              </div>
-              <ul className="mt-1.5 space-y-1">
-                {workflow.supportingSignals.map((s) => (
-                  <li key={s.label} className="text-xs text-ink-soft">
-                    {s.label}: <span className="text-ink">{s.value}</span>
-                  </li>
-                ))}
-              </ul>
+            <SourceChips w={workflow} />
+            <div className="mt-3 text-2xs font-medium uppercase tracking-wide text-ink-faint">
+              Supporting signals
             </div>
+            <ul className="mt-1.5 space-y-1">
+              {workflow.supportingSignals.map((s) => (
+                <li key={s.label} className="text-xs text-ink-soft">
+                  {s.label}: <span className="text-ink">{s.value}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface/60 px-6 py-3">
-            <button
-              onClick={() => setDrawerOpen(true)}
-              className="text-xs font-medium text-ink-soft underline-offset-2 hover:underline"
-            >
-              See what data Claude used
-            </button>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setAdjustOpen((v) => !v)}
-                className="rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
-              >
-                Adjust measurement
-              </button>
-              <button
-                onClick={() => setAccepted(true)}
-                className="rounded-lg bg-ink px-3.5 py-1.5 text-xs font-medium text-canvas transition-colors hover:bg-ink/90"
-              >
-                Accept measurement
-              </button>
-            </div>
-          </div>
-        </>
+        </div>
       )}
+
+      {/* Shared actions — consistent across every card */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface/60 px-6 py-3">
+        <div className="text-xs text-ink-faint">
+          {improved ? "Improvement" : "Change"} vs baseline:{" "}
+          <span className={`font-semibold ${improved ? "text-signal-high" : "text-signal-low"}`}>
+            {pct(view.changePct)}
+          </span>{" "}
+          · {workflow.supportingSignals[0].label}:{" "}
+          <span className="text-ink-soft">{workflow.supportingSignals[0].value}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {accepted ? (
+            <span className="inline-flex items-center gap-1 rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink-faint">
+              <svg viewBox="0 0 16 16" className="h-3 w-3 text-signal-high" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 8.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Accepted
+            </span>
+          ) : (
+            <button
+              onClick={() => setAccepted(true)}
+              className="rounded-lg bg-ink px-3.5 py-1.5 text-xs font-medium text-canvas transition-colors hover:bg-ink/90"
+            >
+              Accept measurement
+            </button>
+          )}
+          <button
+            onClick={() => setAdjustOpen((v) => !v)}
+            className="rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
+          >
+            Adjust measurement
+          </button>
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
+          >
+            How this is measured
+          </button>
+        </div>
+      </div>
 
       {/* Slim confidence hint → opens Adjust (where data can be connected) */}
       {openLevers.length > 0 && !adjustOpen && (
