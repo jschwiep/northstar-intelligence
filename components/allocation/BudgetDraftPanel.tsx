@@ -35,10 +35,10 @@ export function BudgetDraftPanel() {
     const lines: string[] = [];
     lines.push(`# ${draftTitle}`, "");
     lines.push(
-      `**Directional envelope:** current ${usdK(totalMonthlySpend)}/mo → ~${usdKRange(
+      `**Run-rate + proposed changes:** current ${usdK(totalMonthlySpend)}/mo → ~${usdKRange(
         projLow,
         projHigh
-      )}/mo if these items proceed (non-binding).`,
+      )}/mo if these items proceed (non-binding; not a next-month forecast).`,
       ""
     );
     lines.push(`## Items (${items.length})`, "");
@@ -102,7 +102,7 @@ export function BudgetDraftPanel() {
         <div className="flex items-center gap-5">
           <div className="text-right">
             <div className="text-2xs font-medium uppercase tracking-wide text-ink-faint">
-              Directional envelope
+              Run-rate + proposed changes
             </div>
             <div className="text-sm font-semibold text-ink">
               {items.length === 0 ? (
@@ -186,8 +186,9 @@ export function BudgetDraftPanel() {
 
               <div className="mt-4 flex items-center justify-between gap-4">
                 <p className="text-2xs leading-snug text-ink-faint">
-                  One input to your broader tooling / headcount tradeoff — not an
-                  applied budget change.
+                  Current run-rate plus proposed changes (not a next-month
+                  forecast) — one input to your broader tooling / headcount
+                  tradeoff, not an applied budget change.
                 </p>
                 <button
                   onClick={copy}

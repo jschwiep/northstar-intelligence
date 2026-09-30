@@ -115,6 +115,12 @@ export interface Workflow {
   capability: CapabilityConfig;
   spendLimitMonthly: number; // configured limit / allocation
   limitUtilizationPct: number; // how close to the cap
+
+  // Outcome availability. When false, the value signal is a *proposed* outcome
+  // that can't be observed yet — only an activity proxy is available — until
+  // the unlocking data source is connected.
+  outcomeAvailable?: boolean;
+  outcomeUnlockLeverId?: string;
 }
 
 export interface Department {
@@ -157,6 +163,7 @@ export interface DeploymentOpportunity {
     maintain: string; // result that would justify maintaining
     revert: string; // result that would justify reverting
   };
+  guardrail?: string; // spend cap / safety bound on the test
 
   // Budget-draft support (executive view). Every opportunity can be moved to
   // the draft; a "hold and improve measurement" item carries a $0 spend delta.
@@ -514,30 +521,32 @@ export const workflows: Workflow[] = [
     primarySignal: {
       label: "Approved campaign assets produced",
       unit: "assets",
-      current: 128,
-      baseline: 98,
+      current: 96,
+      baseline: 74,
       betterDirection: "higher",
       displayFormat: "count",
     },
-    changePct: 31,
+    changePct: 30,
     strength: "More data needed",
+    outcomeAvailable: false,
+    outcomeUnlockLeverId: "cms-approval",
     supportingSignals: [
-      { label: "Assets drafted with Claude", value: "410 / mo" },
-      { label: "Approval / revision data", value: "unavailable" },
+      { label: "Assets drafted (activity proxy)", value: "410 / mo, +31%" },
+      { label: "Approved-asset output", value: "unavailable until CMS connected" },
     ],
     spendMonthly: 12300,
     spendPrevMonth: 8900,
     workUnit: {
-      label: "Assets drafted with Claude",
+      label: "assets drafted with Claude",
       count: 410,
       assistedNote: "draft assets with Claude activity (approval status unknown)",
     },
     confidence: "Low",
     confidenceRationale:
-      "We can count drafts produced, but the approval and revision system is not connected — so we cannot tell how many drafts became approved, published assets that created value.",
-    baselinePeriod: "Draft counts only; no reliable outcome baseline",
+      "We can count drafts produced, but the approval and revision system is not connected — so we cannot yet tell how many drafts became approved, published assets that created value.",
+    baselinePeriod: "No approved-output baseline until the CMS is connected",
     calculation:
-      "Count of assets marked approved in the CMS. Approval workflow is not currently connected, so 'approved' is estimated from published URLs and is likely undercounted.",
+      "The outcome we want is approved assets published via the CMS. That approval workflow isn't connected, so approved output can't be counted yet — only drafting activity (410/mo, up 31%) is observable, as a proxy.",
     dataSources: [
       { name: "Claude activity", status: "connected" },
       { name: "CMS / DAM", status: "missing", note: "approval + revision history not connected" },
@@ -604,13 +613,17 @@ export const opportunities: DeploymentOpportunity[] = [
       spendChange: "Raise monthly limit from $20.0K to $24.0K (+20%). Expected realized spend +$3.4K–$3.9K.",
     },
     whatWeLearn: {
-      metric: "Issue → merged PR cycle time, held against post-merge revert rate as a quality guardrail.",
-      duration: "One month (~340 planned issues) — enough to hold significance.",
+      metric:
+        "Issue → merged PR cycle time (minimum worthwhile improvement: ≥5% beyond today's level), with post-merge revert rate as a quality guardrail and consumption uptake to confirm the added headroom is actually used.",
+      duration:
+        "Proposed criteria, not established facts. Initial ~4-week observation window (~340 planned issues); extend until the change is stable given its week-to-week variance rather than fixing a date.",
       expand:
-        "Cycle time holds or improves and revert rate stays flat → make the higher limit permanent and test a further increase.",
-      maintain: "Cycle time flat with no quality regression → keep the new limit, stop increasing.",
-      revert: "Revert rate rises or cycle time worsens → return to the prior $20.0K limit.",
+        "Cycle time improves by ≥5% beyond today's level, revert rate stays flat, and the new headroom is used → make the higher limit permanent and test a further increase.",
+      maintain:
+        "Cycle time improvement is 0–5% with no quality regression → keep the new limit but stop increasing; the marginal headroom isn't clearly paying off.",
+      revert: "Revert rate rises, cycle time regresses, or the added headroom goes unused → return to the prior $20.0K limit.",
     },
+    guardrail: "Spend is bounded by the +20% cap ($24.0K); the revert-rate guardrail flags any quality regression.",
     draftable: true,
     draftChangeLabel: "+20% headroom · $20K → $24K limit",
     spendDeltaLow: 3400,
@@ -645,13 +658,18 @@ export const opportunities: DeploymentOpportunity[] = [
       spendChange: "Estimated +$3K–$5K/mo additional consumption during the pilot (agentic runs cost more per opportunity).",
     },
     whatWeLearn: {
-      metric: "Research time per qualified opportunity and qualified opportunities per rep, with brief-acceptance rate as a quality check.",
-      duration: "6 weeks, 8 reps, ~120 opportunities.",
+      metric:
+        "Research time per qualified opportunity vs a matched non-pilot cohort (minimum worthwhile improvement: ≥15%), with brief-acceptance rate as a quality check.",
+      duration:
+        "Proposed criteria. Staged pilot — 8 of 22 reps, ~6 weeks / ~120 opportunities — held against the matched cohort; extend only if the effect is still noisy.",
       expand:
-        "Research time drops further and quality holds → roll agentic access out to the full team.",
-      maintain: "Modest gains → keep for the pilot cohort while improving guardrails.",
-      revert: "No time gain or quality drops → return to assistive mode; the added autonomy isn't paying off.",
+        "Research time improves ≥15% vs the matched cohort and brief-acceptance holds → roll agentic access out to the full team.",
+      maintain:
+        "Improvement is 5–15% with quality holding → keep for the pilot cohort and tighten guardrails before wider rollout.",
+      revert: "Improvement under 5%, or brief-acceptance drops → return to assistive mode; the added autonomy isn't paying off.",
     },
+    guardrail:
+      "Hard-cap pilot consumption at +$5K/mo; every agentic action with CRM access is logged and human-reviewed before any outreach is sent.",
     draftable: true,
     draftChangeLabel: "Agentic pilot · 8 of 22 reps",
     spendDeltaLow: 3000,
@@ -685,13 +703,15 @@ export const opportunities: DeploymentOpportunity[] = [
       spendChange: "Hold at the current $16.0K limit. Revisit once approval data is connected.",
     },
     whatWeLearn: {
-      metric: "Once the CMS approval workflow is connected: approved assets produced and draft → approval time.",
-      duration: "Connect data first, then observe for one month before any expansion.",
+      metric: "Once the CMS approval workflow is connected: approved assets produced and draft → approval rate.",
+      duration:
+        "Proposed criteria. Connect the data first, then observe ~1 month of approved output before considering any expansion.",
       expand:
-        "If approved-asset output tracks the spend increase → expansion is justified.",
-      maintain: "If approvals lag drafts → the extra drafting spend isn't converting to value; keep the current limit.",
-      revert: "If most drafts never get approved → reduce consumption until the workflow is tuned.",
+        "Approved-asset output rises roughly in step with the added spend → expansion is justified.",
+      maintain: "Approvals lag drafts (approval rate flat or falling) → hold the current limit; the extra drafting spend isn't converting to value.",
+      revert: "Most drafts never get approved → reduce consumption until the workflow is tuned.",
     },
+    guardrail: "No spend increase until approval data is connected and a baseline exists.",
     draftable: true,
     draftChangeLabel: "Hold — improve measurement first",
     spendDeltaLow: 0,
@@ -727,13 +747,17 @@ export const opportunities: DeploymentOpportunity[] = [
       spendChange: "Higher per-incident cost from deeper reasoning; total stays bounded by incident volume. Estimated +$1.5K–$2.5K/mo.",
     },
     whatWeLearn: {
-      metric: "Time to resolution and reopened-incident rate, segmented by severity.",
-      duration: "8 weeks or 60 incidents, whichever comes first.",
+      metric:
+        "Time to resolution and reopened-incident rate, segmented by severity (minimum worthwhile improvement: ≥10% on Sev-1/2).",
+      duration:
+        "Proposed criteria. ~8 weeks or 60 incidents, whichever comes first; severity mix is small, so treat early reads as directional.",
       expand:
-        "Resolution time improves on high-severity incidents without more reopens → keep higher effort for that tier.",
-      maintain: "Gains only on low-severity incidents → scope the capability to those.",
-      revert: "No improvement or more reopens → return to standard effort and log-only access.",
+        "Resolution time improves ≥10% on Sev-1/2 with no rise in reopens → keep higher effort for that tier.",
+      maintain: "Gains appear only on low-severity incidents → scope the capability to those and hold.",
+      revert: "No improvement, or reopens increase → return to standard effort and log-only access.",
     },
+    guardrail:
+      "Cap added reasoning spend at +$2.5K/mo; scope tool access to read-only metrics/traces (no write actions).",
     draftable: true,
     draftChangeLabel: "Higher reasoning + observability access",
     spendDeltaLow: 1500,
@@ -953,7 +977,7 @@ export const measurementAdjustments: Record<string, MeasurementAdjustment[]> = {
         confidence: "Medium",
         strength: "Directional",
         explanation:
-          "Now measuring approved assets from the connected CMS: 96 approved this month vs a 74 baseline (+30%). The earlier count (128) was estimated from published URLs and overcounted. The gain holds on approved work, so confidence rises from Low to Medium.",
+          "With the CMS approval workflow connected, approved assets are now countable: 96 this month vs a 74 baseline (+30%). The gain holds on approved work, not just drafting activity, so confidence rises from Low to Medium.",
       },
     },
   ],

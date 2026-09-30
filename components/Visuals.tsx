@@ -12,7 +12,13 @@ function Arrow() {
 }
 
 // The central mental model: AI consumption → work performed → value signal
-export function ValueChain({ w }: { w: Workflow }) {
+export function ValueChain({
+  w,
+  outcomeAvailable = true,
+}: {
+  w: Workflow;
+  outcomeAvailable?: boolean;
+}) {
   const improved = isImprovement(w);
   return (
     <div className="flex items-stretch">
@@ -47,21 +53,34 @@ export function ValueChain({ w }: { w: Workflow }) {
         <div className="text-2xs font-medium uppercase tracking-wide text-ink-faint">
           Value signal
         </div>
-        <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-lg font-semibold text-ink">
-            {formatSignal(w, w.primarySignal.current)}
-          </span>
-          <span
-            className={`text-xs font-semibold ${
-              improved ? "text-signal-high" : "text-signal-low"
-            }`}
-          >
-            {pct(w.changePct)}
-          </span>
-        </div>
-        <div className="text-2xs text-ink-faint">
-          {w.primarySignal.label.toLowerCase()}
-        </div>
+        {outcomeAvailable ? (
+          <>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-lg font-semibold text-ink">
+                {formatSignal(w, w.primarySignal.current)}
+              </span>
+              <span
+                className={`text-xs font-semibold ${
+                  improved ? "text-signal-high" : "text-signal-low"
+                }`}
+              >
+                {pct(w.changePct)}
+              </span>
+            </div>
+            <div className="text-2xs text-ink-faint">
+              {w.primarySignal.label.toLowerCase()}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mt-1 text-lg font-semibold text-ink-faint">
+              Awaiting data
+            </div>
+            <div className="text-2xs text-ink-faint">
+              {w.primarySignal.label.toLowerCase()} — connect a source to measure
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

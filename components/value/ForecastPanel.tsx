@@ -44,7 +44,9 @@ export function ForecastPanel({ dept }: { dept: DepartmentId }) {
           <div className="mt-1 text-sm font-semibold text-ink">
             ${f.perUnitCost.toFixed(0)}
           </div>
-          <div className="text-2xs text-ink-faint">per {d.forecastDriverUnit}</div>
+          <div className="text-2xs text-ink-faint">
+            fully-loaded per {d.forecastDriverUnit}
+          </div>
         </div>
         <div>
           <div className="text-2xs font-medium uppercase tracking-wide text-ink-faint">
@@ -53,14 +55,17 @@ export function ForecastPanel({ dept }: { dept: DepartmentId }) {
           <div className="mt-1 text-sm font-semibold text-ink">
             {usdKRange(f.low, f.high)}
           </div>
-          <div className="text-2xs text-ink-faint">modeled, not extrapolated</div>
+          <div className="text-2xs text-ink-faint">modeled scenario</div>
         </div>
       </div>
 
       <p className="mt-4 text-2xs leading-relaxed text-ink-faint">
         Forecast is driven by expected <span className="italic">work</span>, not
-        by extrapolating token usage — so it moves when the team&apos;s planned
-        workload or deployment changes.
+        token extrapolation. The per-unit figure is{" "}
+        <span className="font-medium">fully loaded</span> — total {d.name} spend
+        divided by planned {d.forecastDriverUnit}s — so it assumes the current
+        mix of work per {d.forecastDriverUnit} holds. The range is a modeled
+        −6% / +11% scenario, not an empirically calibrated confidence interval.
       </p>
     </Card>
   );

@@ -82,6 +82,15 @@ export function WorkflowCard({ workflow }: { workflow: Workflow }) {
   const improved = isImprovement(view);
   const openLevers = levers.filter((l) => !connected.includes(l.id));
 
+  // The outcome is observable if it always was, if an adjustment produced a
+  // result, or if the unlocking data source has been connected.
+  const outcomeAvailable =
+    workflow.outcomeAvailable !== false ||
+    !!applied?.result ||
+    (workflow.outcomeUnlockLeverId
+      ? connected.includes(workflow.outcomeUnlockLeverId)
+      : false);
+
   function connectLever(id: string) {
     setConnected((c) => (c.includes(id) ? c : [...c, id]));
   }
@@ -142,16 +151,22 @@ export function WorkflowCard({ workflow }: { workflow: Workflow }) {
 
       {/* Body: consumption → work → value signal (consistent for every card) */}
       <div className="mt-5 border-t border-line px-6 py-5">
-        <ValueChain w={view} />
+        <ValueChain w={view} outcomeAvailable={outcomeAvailable} />
       </div>
 
       {/* Shared actions — consistent across every card */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface/60 px-6 py-3">
         <div className="text-xs text-ink-faint">
-          {improved ? "Improvement" : "Change"} vs baseline:{" "}
-          <span className={`font-semibold ${improved ? "text-signal-high" : "text-signal-low"}`}>
-            {pct(view.changePct)}
-          </span>{" "}
+          {outcomeAvailable ? (
+            <>
+              {improved ? "Improvement" : "Change"} vs baseline:{" "}
+              <span className={`font-semibold ${improved ? "text-signal-high" : "text-signal-low"}`}>
+                {pct(view.changePct)}
+              </span>
+            </>
+          ) : (
+            <span className="text-signal-low">Approved output not yet measurable</span>
+          )}{" "}
           · {workflow.supportingSignals[0].label}:{" "}
           <span className="text-ink-soft">{workflow.supportingSignals[0].value}</span>
         </div>
@@ -231,7 +246,11 @@ export function WorkflowCard({ workflow }: { workflow: Workflow }) {
         eyebrow={`${workflow.name} · measurement`}
         title="How this is measured"
       >
-        <MeasurementDetail workflow={view} baseWorkflow={workflow} />
+        <MeasurementDetail
+          workflow={view}
+          baseWorkflow={workflow}
+          outcomeAvailable={outcomeAvailable}
+        />
       </Drawer>
     </Card>
   );
@@ -500,29 +519,46 @@ function AdjustPanel({
 function MeasurementDetail({
   workflow,
   baseWorkflow,
+  outcomeAvailable = true,
 }: {
   workflow: Workflow;
   baseWorkflow: Workflow;
+  outcomeAvailable?: boolean;
 }) {
   const improved = isImprovement(workflow);
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-line bg-surface p-4">
-        <CompareBars w={workflow} />
-        <div className="mt-3 text-xs text-ink-soft">
-          Current is{" "}
-          <span className={`font-semibold ${improved ? "text-signal-high" : "text-signal-low"}`}>
-            {pct(workflow.changePct)}
-          </span>{" "}
-          vs the historical baseline. This is an observed association, not proof
-          of causation.
+      {outcomeAvailable ? (
+        <div className="rounded-xl border border-line bg-surface p-4">
+          <CompareBars w={workflow} />
+          <div className="mt-3 text-xs text-ink-soft">
+            Current is{" "}
+            <span className={`font-semibold ${improved ? "text-signal-high" : "text-signal-low"}`}>
+              {pct(workflow.changePct)}
+            </span>{" "}
+            vs the historical baseline. This is an observed association, not proof
+            of causation.
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-xl border border-signal-low/30 bg-signal-low/[0.06] p-4 text-xs leading-relaxed text-ink-soft">
+          The outcome — {workflow.primarySignal.label.toLowerCase()} — is not yet
+          measurable. Connect the data source below to compute it against a
+          baseline. Only drafting activity (a proxy) is observable today.
+        </div>
+      )}
 
-      <Field label="Primary signal">
-        {workflow.primarySignal.label} — currently{" "}
-        {formatSignal(workflow, workflow.primarySignal.current)} vs baseline{" "}
-        {formatSignal(workflow, workflow.primarySignal.baseline)}.
+      <Field label={outcomeAvailable ? "Primary signal" : "Proposed value signal (awaiting data)"}>
+        {workflow.primarySignal.label}
+        {outcomeAvailable ? (
+          <>
+            {" "}
+            — currently {formatSignal(workflow, workflow.primarySignal.current)} vs
+            baseline {formatSignal(workflow, workflow.primarySignal.baseline)}.
+          </>
+        ) : (
+          <> — not yet measurable; connect the CMS approval workflow to compute it.</>
+        )}
       </Field>
 
       <Field label="Source systems">

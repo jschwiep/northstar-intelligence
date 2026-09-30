@@ -182,6 +182,7 @@ function OpportunityDetail({ opp }: { opp: DeploymentOpportunity }) {
             <Outcome color="text-ink-soft" label="Maintain if" value={opp.whatWeLearn.maintain} />
             <Outcome color="text-signal-low" label="Revert if" value={opp.whatWeLearn.revert} />
           </div>
+          {opp.guardrail && <ChangeRow label="Guardrail" value={opp.guardrail} />}
         </div>
       </Section>
 

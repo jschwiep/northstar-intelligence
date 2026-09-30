@@ -17,8 +17,6 @@ export default function ValuePage() {
   const { dept } = useAppState();
   const department = departmentById(dept)!;
   const flows = workflowsByDept(dept);
-  const proposedCount = flows.filter((w) => w.status === "proposed").length;
-  const acceptedCount = flows.length - proposedCount;
 
   return (
     <>
@@ -49,8 +47,8 @@ export default function ValuePage() {
             Claude found {flows.length} workflows in {department.name} and
             recommends measuring value this way.
           </span>{" "}
-          {acceptedCount} measurement{acceptedCount === 1 ? "" : "s"} accepted,{" "}
-          {proposedCount} awaiting your review.
+          Review each measurement, adjust how it&apos;s computed, or connect data
+          to strengthen it.
         </ClaudeNote>
 
         {/* Workflow cards */}
