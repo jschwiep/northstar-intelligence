@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import type { DeploymentOpportunity } from "@/data/mockEnterprise";
-import { workflowById, departmentById } from "@/data/mockEnterprise";
+import { workflowById } from "@/data/mockEnterprise";
 import { useAppState } from "@/components/AppState";
 import { Card, ConfidenceBadge, ClaudeMark } from "@/components/ui";
 import { Drawer } from "@/components/Drawer";
 import { AskBox } from "@/components/AskBox";
 import { answerOpportunityQuestion } from "@/lib/answers";
+import { askApi } from "@/lib/askClient";
 import { usdK } from "@/lib/format";
 
 const kindStyle: Record<DeploymentOpportunity["kind"], string> = {
@@ -16,10 +17,6 @@ const kindStyle: Record<DeploymentOpportunity["kind"], string> = {
   investigate: "border-signal-low/30 bg-signal-low/10 text-signal-low",
   "tune-capability": "border-line-strong bg-surface text-ink-soft",
 };
-
-function ownerName(deptId: DeploymentOpportunity["department"]): string {
-  return (departmentById(deptId)?.owner ?? "").split(" — ")[0] || "the owner";
-}
 
 function DimensionRow({ label, value }: { label: string; value: string }) {
   return (
@@ -204,14 +201,9 @@ function OpportunityDetail({ opp }: { opp: DeploymentOpportunity }) {
   );
 }
 
-// Ask Claude about the opportunity — with escalation to the LOB owner on the
-// same input (Claude first, human for judgment calls).
+// Ask Claude about the opportunity.
 function AskAboutOpportunity({ opp }: { opp: DeploymentOpportunity }) {
-  const { sendOwnerNote, notesForWorkflow } = useAppState();
   const wf = workflowById(opp.workflowId)!;
-  const owner = ownerName(opp.department);
-  const firstName = owner.split(" ")[0];
-  const sent = notesForWorkflow(opp.workflowId);
 
   return (
     <div className="border-t border-line pt-5">
@@ -225,19 +217,14 @@ function AskAboutOpportunity({ opp }: { opp: DeploymentOpportunity }) {
       </div>
       <AskBox
         suggestions={["Why this workflow?", "What's the risk?", "How much does it cost?"]}
-        placeholder={`Ask Claude, or send to ${firstName} if it's a judgment call…`}
-        onAsk={(q) => answerOpportunityQuestion(opp, wf, q)}
-        escalate={{
-          ownerName: firstName,
-          onEscalate: (text) =>
-            sendOwnerNote({
-              workflowId: opp.workflowId,
-              workflowName: wf.name,
-              from: "Dana Whitfield (Exec)",
-              text,
-            }),
+        placeholder="Ask Claude about this opportunity…"
+        onAsk={async (q) => {
+          try {
+            return await askApi("opportunity", opp.id, q);
+          } catch {
+            return answerOpportunityQuestion(opp, wf, q);
+          }
         }}
-        sentNotes={sent.map((n) => ({ id: n.id, text: n.text }))}
       />
     </div>
   );

@@ -9,9 +9,26 @@ import { ValueChain, CompareBars, SourceChips } from "@/components/Visuals";
 import { Drawer } from "@/components/Drawer";
 import { AskBox } from "@/components/AskBox";
 import { answerMeasurementQuestion } from "@/lib/answers";
+import { askApi } from "@/lib/askClient";
 import { formatSignal, pct, isImprovement } from "@/lib/format";
 
 const rank: Record<Confidence, number> = { Low: 0, Medium: 1, High: 2 };
+
+// Enterprise connectors available through Claude (mock list for the picker).
+const CONNECTORS = [
+  "GitHub",
+  "GitLab",
+  "Linear",
+  "Jira",
+  "Salesforce",
+  "HubSpot",
+  "PagerDuty",
+  "Snowflake",
+  "Google Drive",
+  "Confluence",
+  "Notion",
+  "Zendesk",
+];
 
 // Light, demo-safe intent matching — no real model call.
 function matchAdjustment(
@@ -297,6 +314,7 @@ function AdjustPanel({
 
   const [sourceInput, setSourceInput] = useState("");
   const [sourceAck, setSourceAck] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   function run(text: string) {
     const adj = matchAdjustment(text, adjustments);
@@ -326,6 +344,13 @@ function AdjustPanel({
       `Noted — I'll flag “${s}” for your workspace admin to connect. Once it's in, I can factor it into this measurement.`
     );
     setSourceInput("");
+  }
+
+  function connectConnector(name: string) {
+    setSourceAck(
+      `Connecting ${name} via Claude connectors — once authorized, I can factor its signals into this measurement.`
+    );
+    setPickerOpen(false);
   }
 
   return (
@@ -485,20 +510,52 @@ function AdjustPanel({
           </p>
         )}
 
-        <form onSubmit={volunteerSource} className="mt-2.5 flex gap-2">
-          <input
-            value={sourceInput}
-            onChange={(e) => setSourceInput(e.target.value)}
-            placeholder="Have another source to share? e.g. Jira, our data warehouse…"
-            className="flex-1 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent"
-          />
+        <div className="mt-3 text-2xs text-ink-faint">
+          Add another source — describe it, or connect it through Claude.
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <form onSubmit={volunteerSource} className="flex flex-1 gap-2">
+            <input
+              value={sourceInput}
+              onChange={(e) => setSourceInput(e.target.value)}
+              placeholder="Describe a source, e.g. our data warehouse…"
+              className="min-w-0 flex-1 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+            />
+            <button
+              type="submit"
+              className="shrink-0 rounded-lg border border-line bg-panel px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-line/40"
+            >
+              Add manually
+            </button>
+          </form>
           <button
-            type="submit"
-            className="rounded-lg border border-line bg-panel px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-line/40"
+            onClick={() => setPickerOpen((v) => !v)}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-panel px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-line/40"
           >
-            Offer source
+            <ClaudeMark className="h-3 w-3 text-accent" />
+            Connect via Claude connectors
           </button>
-        </form>
+        </div>
+
+        {pickerOpen && (
+          <div className="mt-2.5 rounded-lg border border-line bg-panel p-3">
+            <div className="mb-2 text-2xs font-medium uppercase tracking-wide text-ink-faint">
+              Choose a connector
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {CONNECTORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => connectConnector(c)}
+                  className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-accent-soft hover:text-ink"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {sourceAck && (
           <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-ink-soft">
             <ClaudeMark className="mt-0.5 h-3 w-3 shrink-0 text-accent" />
@@ -582,7 +639,13 @@ function MeasurementDetail({
             "What would make it stronger?",
           ]}
           placeholder="Ask about the calculation, baseline, or limitations…"
-          onAsk={(q) => answerMeasurementQuestion(baseWorkflow, q)}
+          onAsk={async (q) => {
+            try {
+              return await askApi("measurement", baseWorkflow.id, q);
+            } catch {
+              return answerMeasurementQuestion(baseWorkflow, q);
+            }
+          }}
         />
       </div>
     </div>

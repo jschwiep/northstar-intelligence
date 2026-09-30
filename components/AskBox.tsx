@@ -16,7 +16,8 @@ export function AskBox({
   sentNotes,
 }: {
   suggestions: string[];
-  onAsk: (q: string) => string;
+  // Returns Claude's answer. Async because it may call the model via /api/ask.
+  onAsk: (q: string) => Promise<string>;
   placeholder: string;
   // Optional human-escalation on the same input (exec → LOB owner).
   escalate?: { ownerName: string; onEscalate: (q: string) => void };
@@ -24,12 +25,20 @@ export function AskBox({
 }) {
   const [input, setInput] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [pending, setPending] = useState(false);
 
-  function ask(text: string) {
+  async function ask(text: string) {
     const t = text.trim();
-    if (!t) return;
-    setTurns((prev) => [...prev, { role: "user", text: t }, { role: "claude", text: onAsk(t) }]);
+    if (!t || pending) return;
+    setTurns((prev) => [...prev, { role: "user", text: t }]);
     setInput("");
+    setPending(true);
+    try {
+      const answer = await onAsk(t);
+      setTurns((prev) => [...prev, { role: "claude", text: answer }]);
+    } finally {
+      setPending(false);
+    }
   }
 
   function submit(e: React.FormEvent) {
@@ -67,6 +76,16 @@ export function AskBox({
               </div>
             )
           )}
+        </div>
+      )}
+
+      {/* Pending indicator */}
+      {pending && (
+        <div className="mb-2.5 flex items-center gap-2">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+            <ClaudeMark className="h-2.5 w-2.5" />
+          </span>
+          <span className="text-xs text-ink-faint">Claude is thinking…</span>
         </div>
       )}
 
@@ -112,7 +131,8 @@ export function AskBox({
         />
         <button
           type="submit"
-          className="shrink-0 rounded-lg bg-ink px-3 py-2 text-xs font-medium text-canvas transition-colors hover:bg-ink/90"
+          disabled={pending}
+          className="shrink-0 rounded-lg bg-ink px-3 py-2 text-xs font-medium text-canvas transition-colors hover:bg-ink/90 disabled:opacity-50"
         >
           Ask Claude
         </button>
