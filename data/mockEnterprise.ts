@@ -158,12 +158,13 @@ export interface DeploymentOpportunity {
     revert: string; // result that would justify reverting
   };
 
-  // Budget-draft support (executive view). Not every opportunity carries a
-  // spend delta — a "hold and improve measurement" item is not draftable.
+  // Budget-draft support (executive view). Every opportunity can be moved to
+  // the draft; a "hold and improve measurement" item carries a $0 spend delta.
   draftable: boolean;
   draftChangeLabel: string; // short label for the draft line, e.g. "+20% headroom"
   spendDeltaLow: number; // monthly USD, directional
   spendDeltaHigh: number; // monthly USD, directional
+  footnote?: string; // optional italic note under the card actions
 }
 
 // ===========================================================================
@@ -691,10 +692,11 @@ export const opportunities: DeploymentOpportunity[] = [
       maintain: "If approvals lag drafts → the extra drafting spend isn't converting to value; keep the current limit.",
       revert: "If most drafts never get approved → reduce consumption until the workflow is tuned.",
     },
-    draftable: false,
-    draftChangeLabel: "",
+    draftable: true,
+    draftChangeLabel: "Hold — improve measurement first",
     spendDeltaLow: 0,
     spendDeltaHigh: 0,
+    footnote: "Ask the LOB owner to improve measurement",
   },
   {
     id: "opp-incident-tune",

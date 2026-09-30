@@ -382,7 +382,7 @@ function AdjustPanel({
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Tell Claude how to change this, or name data to add…"
+          placeholder="Tell Claude how to change this, or manually give Claude data…"
           className="min-w-0 flex-1 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent"
         />
         <button

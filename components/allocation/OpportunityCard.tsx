@@ -75,21 +75,21 @@ export function OpportunityCard({ opp }: { opp: DeploymentOpportunity }) {
         <DimensionRow label="How much consumption" value={opp.dimensions.consumption} />
       </div>
 
-      <div className="flex items-center justify-between gap-4 border-t border-line px-6 py-3">
-        <div className="text-xs text-ink-faint">
-          Current limit{" "}
-          <span className="font-medium text-ink-soft">{usdK(wf.spendLimitMonthly)}/mo</span> ·{" "}
-          {wf.limitUtilizationPct}% utilized · spend{" "}
-          <span className="font-medium text-ink-soft">{usdK(wf.spendMonthly)}/mo</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setOpen(true)}
-            className="rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
-          >
-            View evidence &amp; plan
-          </button>
-          {opp.draftable ? (
+      <div className="border-t border-line px-6 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="text-xs text-ink-faint">
+            Current limit{" "}
+            <span className="font-medium text-ink-soft">{usdK(wf.spendLimitMonthly)}/mo</span> ·{" "}
+            {wf.limitUtilizationPct}% utilized · spend{" "}
+            <span className="font-medium text-ink-soft">{usdK(wf.spendMonthly)}/mo</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setOpen(true)}
+              className="rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
+            >
+              View evidence &amp; plan
+            </button>
             <button
               onClick={() => toggleDraft(opp.id)}
               className={`rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors ${
@@ -100,12 +100,11 @@ export function OpportunityCard({ opp }: { opp: DeploymentOpportunity }) {
             >
               {drafted ? "Remove from draft" : "Move to budget draft"}
             </button>
-          ) : (
-            <span className="text-2xs italic text-ink-faint">
-              Ask the LOB owner to improve measurement first
-            </span>
-          )}
+          </div>
         </div>
+        {opp.footnote && (
+          <p className="mt-2 text-right text-2xs italic text-ink-faint">{opp.footnote}</p>
+        )}
       </div>
 
       <Drawer
@@ -119,18 +118,16 @@ export function OpportunityCard({ opp }: { opp: DeploymentOpportunity }) {
               Claude recommends a reversible test — it does not reallocate
               budget. You remain the decision-maker.
             </p>
-            {opp.draftable ? (
-              <button
-                onClick={() => toggleDraft(opp.id)}
-                className={`shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors ${
-                  drafted
-                    ? "border border-line bg-panel text-ink hover:bg-line/40"
-                    : "bg-ink text-canvas hover:bg-ink/90"
-                }`}
-              >
-                {drafted ? "Remove from draft" : "Move to budget draft"}
-              </button>
-            ) : null}
+            <button
+              onClick={() => toggleDraft(opp.id)}
+              className={`shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors ${
+                drafted
+                  ? "border border-line bg-panel text-ink hover:bg-line/40"
+                  : "bg-ink text-canvas hover:bg-ink/90"
+              }`}
+            >
+              {drafted ? "Remove from draft" : "Move to budget draft"}
+            </button>
           </div>
         }
       >

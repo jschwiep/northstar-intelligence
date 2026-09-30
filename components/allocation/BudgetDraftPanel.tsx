@@ -46,7 +46,11 @@ export function BudgetDraftPanel() {
       const wf = workflowById(opp.workflowId)!;
       lines.push(`### ${opp.title}`);
       lines.push(`- Change: ${opp.draftChangeLabel}`);
-      lines.push(`- Directional spend: +${usdKRange(opp.spendDeltaLow, opp.spendDeltaHigh)}/mo`);
+      lines.push(
+        opp.spendDeltaHigh > 0
+          ? `- Directional spend: +${usdKRange(opp.spendDeltaLow, opp.spendDeltaHigh)}/mo`
+          : `- Directional spend: no spend change`
+      );
       lines.push(`- Value signal: ${wf.primarySignal.label} (${opp.confidence} confidence)`);
       lines.push(`- Monitor: ${opp.whatWeLearn.metric}`);
       lines.push("");
@@ -142,9 +146,11 @@ export function BudgetDraftPanel() {
                       <div>
                         <div className="text-sm font-medium text-ink">{opp.title}</div>
                         <div className="mt-0.5 text-xs text-ink-soft">
-                          {opp.draftChangeLabel} · directional +
-                          {usdKRange(opp.spendDeltaLow, opp.spendDeltaHigh)}/mo ·{" "}
-                          {opp.confidence} confidence
+                          {opp.draftChangeLabel} ·{" "}
+                          {opp.spendDeltaHigh > 0
+                            ? `directional +${usdKRange(opp.spendDeltaLow, opp.spendDeltaHigh)}/mo`
+                            : "no spend change"}{" "}
+                          · {opp.confidence} confidence
                         </div>
                         <div className="mt-1 text-2xs text-ink-faint">
                           Monitors {wf.primarySignal.label.toLowerCase()}
