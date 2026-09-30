@@ -308,20 +308,13 @@ function AdjustPanel({
   const [response, setResponse] = useState<
     | { type: "applied"; adj: MeasurementAdjustment }
     | { type: "blocked"; adj: MeasurementAdjustment }
-    | { type: "nomatch" }
     | null
   >(applied ? { type: "applied", adj: applied } : null);
 
-  const [sourceInput, setSourceInput] = useState("");
   const [sourceAck, setSourceAck] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  function run(text: string) {
-    const adj = matchAdjustment(text, adjustments);
-    if (!adj) {
-      setResponse({ type: "nomatch" });
-      return;
-    }
+  function applyAdjustment(adj: MeasurementAdjustment) {
     if (adj.requiresLeverId && !connected.includes(adj.requiresLeverId)) {
       setResponse({ type: "blocked", adj });
       return;
@@ -330,20 +323,23 @@ function AdjustPanel({
     setResponse({ type: "applied", adj });
   }
 
+  // One input handles both intents: an instruction Claude can act on
+  // (recompute the signal), or a data source to add.
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim()) return;
-    run(input.trim());
-  }
-
-  function volunteerSource(e: React.FormEvent) {
-    e.preventDefault();
-    const s = sourceInput.trim();
-    if (!s) return;
-    setSourceAck(
-      `Noted — I'll flag “${s}” for your workspace admin to connect. Once it's in, I can factor it into this measurement.`
-    );
-    setSourceInput("");
+    const text = input.trim();
+    if (!text) return;
+    const adj = matchAdjustment(text, adjustments);
+    if (adj) {
+      applyAdjustment(adj);
+      setSourceAck(null);
+    } else {
+      setSourceAck(
+        `Noted — I'll flag “${text}” for your workspace admin to connect. Once it's in, I can factor it into this measurement.`
+      );
+      setResponse(null);
+    }
+    setInput("");
   }
 
   function connectConnector(name: string) {
@@ -361,7 +357,7 @@ function AdjustPanel({
         </span>
         <span className="text-xs font-medium text-ink">Adjust the measurement</span>
         <span className="text-2xs text-ink-faint">
-          Tell Claude how to change it, or add data to strengthen it.
+          Tell Claude how to change it, or connect data to strengthen it.
         </span>
       </div>
 
@@ -371,8 +367,8 @@ function AdjustPanel({
           <button
             key={a.id}
             onClick={() => {
-              setInput(a.instruction);
-              run(a.instruction);
+              applyAdjustment(a);
+              setSourceAck(null);
             }}
             className="rounded-full border border-line bg-panel px-2.5 py-1 text-2xs font-medium text-ink-soft transition-colors hover:border-accent-soft hover:text-ink"
           >
@@ -381,31 +377,70 @@ function AdjustPanel({
         ))}
       </div>
 
-      {/* Input */}
-      <form onSubmit={submit} className="mt-2.5 flex gap-2">
+      {/* One input + connectors button */}
+      <form onSubmit={submit} className="mt-2.5 flex flex-wrap items-center gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="e.g. exclude epics, or use a 6-month baseline"
-          className="flex-1 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent"
+          placeholder="Tell Claude how to change this, or name data to add…"
+          className="min-w-0 flex-1 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent"
         />
         <button
-          type="submit"
-          className="rounded-lg bg-ink px-3.5 py-2 text-xs font-medium text-canvas transition-colors hover:bg-ink/90"
+          type="button"
+          onClick={() => setPickerOpen((v) => !v)}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-panel px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-line/40"
         >
-          Recompute
+          <ClaudeMark className="h-3 w-3 text-accent" />
+          Connect via Claude connectors
         </button>
       </form>
 
-      {/* Response */}
-      {response?.type === "nomatch" && (
-        <div className="mt-3 rounded-lg border border-line bg-panel px-3.5 py-2.5 text-xs leading-relaxed text-ink-soft">
-          I can adjust the baseline window, exclusions, or scope for this
-          measurement. Try:{" "}
-          {adjustments.map((a) => `“${a.instruction}”`).join(", ")}.
+      {/* Connector picker */}
+      {pickerOpen && (
+        <div className="mt-2.5 rounded-lg border border-line bg-panel p-3">
+          <div className="mb-2 text-2xs font-medium uppercase tracking-wide text-ink-faint">
+            Choose a connector
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {CONNECTORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => connectConnector(c)}
+                className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-accent-soft hover:text-ink"
+              >
+                {c}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
+      {/* Recommended sources to connect (raise confidence) */}
+      {openLevers.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {openLevers.map((l) => (
+            <div key={l.id} className="flex items-center justify-between gap-3">
+              <div className="text-xs text-ink-soft">
+                <span className="text-ink-faint">Recommended → {l.raisesTo}:</span>{" "}
+                connect <span className="font-medium text-ink">{l.sourceName}</span> — {l.description}
+              </div>
+              <button
+                onClick={() => onConnect(l.id)}
+                className="shrink-0 rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
+              >
+                Connect
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {levers.length > 0 && openLevers.length === 0 && (
+        <p className="mt-3 text-2xs text-signal-high">
+          {levers.map((l) => l.sourceName).join(", ")} connected — confidence raised.
+        </p>
+      )}
+
+      {/* Response */}
       {response?.type === "blocked" && (
         <div className="mt-3 rounded-lg border border-signal-low/30 bg-signal-low/[0.06] px-3.5 py-3">
           <p className="text-xs leading-relaxed text-ink-soft">{response.adj.blockedResponse}</p>
@@ -480,83 +515,13 @@ function AdjustPanel({
         </div>
       )}
 
-      {/* Add data — connect sources or volunteer another */}
-      <div className="mt-4 border-t border-line pt-3">
-        <div className="mb-2 text-2xs font-semibold uppercase tracking-[0.08em] text-ink-faint">
-          Add data to strengthen this
-        </div>
-        {openLevers.length > 0 ? (
-          <div className="space-y-2">
-            {openLevers.map((l) => (
-              <div key={l.id} className="flex items-center justify-between gap-3">
-                <div className="text-xs text-ink-soft">
-                  <span className="text-ink-faint">→ {l.raisesTo}:</span> Connect{" "}
-                  <span className="font-medium text-ink">{l.sourceName}</span> — {l.description}
-                </div>
-                <button
-                  onClick={() => onConnect(l.id)}
-                  className="shrink-0 rounded-lg border border-line bg-panel px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line/40"
-                >
-                  Connect
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : levers.length > 0 ? (
-          <p className="text-xs text-signal-high">All suggested sources connected.</p>
-        ) : (
-          <p className="text-xs text-ink-faint">
-            Claude has the sources it needs for this signal.
-          </p>
-        )}
-
-        <div className="mt-3 text-2xs text-ink-faint">
-          Add another source — describe it, or connect it through Claude.
-        </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          <form onSubmit={volunteerSource} className="flex flex-1">
-            <input
-              value={sourceInput}
-              onChange={(e) => setSourceInput(e.target.value)}
-              placeholder="Enter data you can share, or name a source to connect…"
-              className="min-w-0 flex-1 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent"
-            />
-          </form>
-          <button
-            onClick={() => setPickerOpen((v) => !v)}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-panel px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-line/40"
-          >
-            <ClaudeMark className="h-3 w-3 text-accent" />
-            Connect via Claude connectors
-          </button>
-        </div>
-
-        {pickerOpen && (
-          <div className="mt-2.5 rounded-lg border border-line bg-panel p-3">
-            <div className="mb-2 text-2xs font-medium uppercase tracking-wide text-ink-faint">
-              Choose a connector
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {CONNECTORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => connectConnector(c)}
-                  className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-accent-soft hover:text-ink"
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {sourceAck && (
-          <p className="mt-2 flex items-start gap-2 text-xs leading-relaxed text-ink-soft">
-            <ClaudeMark className="mt-0.5 h-3 w-3 shrink-0 text-accent" />
-            {sourceAck}
-          </p>
-        )}
-      </div>
+      {/* Connect / data-offer acknowledgement */}
+      {sourceAck && (
+        <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-ink-soft">
+          <ClaudeMark className="mt-0.5 h-3 w-3 shrink-0 text-accent" />
+          {sourceAck}
+        </p>
+      )}
     </div>
   );
 }
