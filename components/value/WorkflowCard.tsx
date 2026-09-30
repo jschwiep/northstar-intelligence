@@ -140,45 +140,10 @@ export function WorkflowCard({ workflow }: { workflow: Workflow }) {
         </div>
       </div>
 
-      {/* Body: computed value (accepted) or Claude's candidate observation */}
-      {accepted ? (
-        <div className="mt-5 border-t border-line px-6 py-5">
-          <ValueChain w={view} />
-        </div>
-      ) : (
-        <div className="mt-5 grid grid-cols-2 gap-6 border-t border-line px-6 py-5">
-          <div>
-            <div className="mb-2 text-2xs font-medium uppercase tracking-wide text-ink-faint">
-              Claude&apos;s candidate observation
-            </div>
-            <CompareBars w={view} />
-            <div className="mt-3 text-xs text-ink-faint">
-              {improved ? "Directional improvement" : "Change"} of{" "}
-              <span className={`font-semibold ${improved ? "text-signal-high" : "text-signal-low"}`}>
-                {pct(view.changePct)}
-              </span>{" "}
-              over {workflow.workUnit.count.toLocaleString("en-US")}{" "}
-              {workflow.workUnit.label.toLowerCase()}.
-            </div>
-          </div>
-          <div>
-            <div className="mb-2 text-2xs font-medium uppercase tracking-wide text-ink-faint">
-              Data available
-            </div>
-            <SourceChips w={workflow} />
-            <div className="mt-3 text-2xs font-medium uppercase tracking-wide text-ink-faint">
-              Supporting signals
-            </div>
-            <ul className="mt-1.5 space-y-1">
-              {workflow.supportingSignals.map((s) => (
-                <li key={s.label} className="text-xs text-ink-soft">
-                  {s.label}: <span className="text-ink">{s.value}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
+      {/* Body: consumption → work → value signal (consistent for every card) */}
+      <div className="mt-5 border-t border-line px-6 py-5">
+        <ValueChain w={view} />
+      </div>
 
       {/* Shared actions — consistent across every card */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line bg-surface/60 px-6 py-3">
@@ -251,6 +216,7 @@ export function WorkflowCard({ workflow }: { workflow: Workflow }) {
           onRevert={() => setApplied(null)}
           onConnect={connectLever}
           applied={applied}
+          onClose={() => setAdjustOpen(false)}
           onAcceptRevised={() => {
             setAccepted(true);
             setAdjustOpen(false);
@@ -281,6 +247,7 @@ function AdjustPanel({
   onApply,
   onRevert,
   onConnect,
+  onClose,
   onAcceptRevised,
 }: {
   workflow: Workflow;
@@ -289,6 +256,7 @@ function AdjustPanel({
   onApply: (adj: MeasurementAdjustment) => void;
   onRevert: () => void;
   onConnect: (leverId: string) => void;
+  onClose: () => void;
   onAcceptRevised: () => void;
 }) {
   const adjustments = adjustmentsFor(workflow.id);
@@ -342,14 +310,25 @@ function AdjustPanel({
 
   return (
     <div className="border-t border-line bg-surface px-6 py-4">
-      <div className="flex items-center gap-2">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/10 text-accent">
-          <ClaudeMark className="h-3 w-3" />
-        </span>
-        <span className="text-xs font-medium text-ink">Adjust the measurement</span>
-        <span className="text-2xs text-ink-faint">
-          Tell Claude how to change it, or connect data to strengthen it.
-        </span>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/10 text-accent">
+            <ClaudeMark className="h-3 w-3" />
+          </span>
+          <span className="text-xs font-medium text-ink">Adjust the measurement</span>
+          <span className="text-2xs text-ink-faint">
+            Tell Claude how to change it, or connect data to strengthen it.
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          aria-label="Dismiss"
+          className="-mr-1 -mt-1 shrink-0 rounded-md p-1 text-ink-faint transition-colors hover:bg-line/50 hover:text-ink"
+        >
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M5 5l10 10M15 5L5 15" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
 
       {/* Suggested instructions */}
