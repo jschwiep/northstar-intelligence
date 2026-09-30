@@ -514,19 +514,13 @@ function AdjustPanel({
           Add another source — describe it, or connect it through Claude.
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
-          <form onSubmit={volunteerSource} className="flex flex-1 gap-2">
+          <form onSubmit={volunteerSource} className="flex flex-1">
             <input
               value={sourceInput}
               onChange={(e) => setSourceInput(e.target.value)}
-              placeholder="Describe a source, e.g. our data warehouse…"
+              placeholder="Enter data you can share, or name a source to connect…"
               className="min-w-0 flex-1 rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent"
             />
-            <button
-              type="submit"
-              className="shrink-0 rounded-lg border border-line bg-panel px-3 py-2 text-xs font-medium text-ink transition-colors hover:bg-line/40"
-            >
-              Add manually
-            </button>
           </form>
           <button
             onClick={() => setPickerOpen((v) => !v)}

@@ -119,13 +119,6 @@ export default function AllocationPage() {
             ))}
           </div>
         </div>
-
-        <p className="mt-8 text-center text-xs leading-relaxed text-ink-faint">
-          Claude is becoming a production input for knowledge work. This surface
-          helps enterprises allocate it deliberately — the right capability, to
-          the right workflow, at the right level of consumption — while keeping
-          the human as the decision-maker.
-        </p>
       </div>
     </>
   );

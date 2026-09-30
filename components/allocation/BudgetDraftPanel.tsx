@@ -119,7 +119,7 @@ export function BudgetDraftPanel() {
       {open && (
         <div className="border-t border-line px-6 py-5">
           {items.length === 0 ? (
-            <p className="text-sm leading-relaxed text-ink-faint">
+            <p className="text-xs leading-relaxed text-ink-faint">
               Move opportunities here to assemble a budget draft you can annotate
               and export. The directional envelope updates as you add items —
               it&apos;s a planning artifact, not a committed change.

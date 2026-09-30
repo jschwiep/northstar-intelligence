@@ -102,7 +102,7 @@ export function OpportunityCard({ opp }: { opp: DeploymentOpportunity }) {
             </button>
           ) : (
             <span className="text-2xs italic text-ink-faint">
-              No spend change — improve measurement first
+              Ask the LOB owner to improve measurement first
             </span>
           )}
         </div>

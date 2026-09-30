@@ -50,9 +50,7 @@ export default function ValuePage() {
             recommends measuring value this way.
           </span>{" "}
           {acceptedCount} measurement{acceptedCount === 1 ? "" : "s"} accepted,{" "}
-          {proposedCount} awaiting your review. Claude prefers observable
-          operational measures over dollar estimates, and surfaces its confidence
-          and limitations for each. {department.owner}.
+          {proposedCount} awaiting your review.
         </ClaudeNote>
 
         {/* Workflow cards */}
